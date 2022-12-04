@@ -1,5 +1,5 @@
 
-# Learning Rust via Advent of code
+# Learning Rust via Advent of Code (2022)
 
 ## commands
 

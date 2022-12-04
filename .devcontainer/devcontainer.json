@@ -1,5 +1,5 @@
 {
-  "name": "aoc-2015",
+  "name": "Rust",
   "dockerComposeFile": ["docker-compose.yml"],
   "service": "vscode",
   "runServices": ["vscode"],
