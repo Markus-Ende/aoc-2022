@@ -12,7 +12,7 @@ fn main() {
     let input = fs::read_to_string(file_path).expect("Should have been able to read the file");
 
     println!("part1 {}", part1(parse_input(&input)));
-    // println!("part2 {}", part2(&input))
+    println!("part2 {}", part2(parse_input(&input)));
 }
 
 fn part1(
@@ -24,6 +24,24 @@ fn part1(
             // println!("move {} from {} to {} ({})", amount, from, to, c);
             crates.get_mut(&to).unwrap().push(c);
         });
+        // println!("crates {:?}", crates);
+    }
+
+    (1..=crates.len())
+        .map(|i| crates.get_mut(&i).unwrap().pop().unwrap())
+        .collect()
+}
+
+fn part2(
+    (mut crates, instructions): (HashMap<usize, Vec<char>>, Vec<(usize, usize, usize)>),
+) -> String {
+    for (amount, from, to) in instructions {
+        let mut creates_to_move = repeat(0)
+            .take(amount)
+            .map(|_| crates.get_mut(&from).unwrap().pop().unwrap())
+            .collect::<Vec<_>>();
+        creates_to_move.reverse();
+        crates.get_mut(&to).unwrap().append(&mut creates_to_move);
         // println!("crates {:?}", crates);
     }
 
