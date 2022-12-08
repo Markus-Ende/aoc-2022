@@ -12,6 +12,23 @@ fn main() {
 }
 
 fn part1(input: &str) -> usize {
+    let dir_sizes = calculate_directory_sizes(input);
+    dir_sizes.values().filter(|size| **size <= 100000).sum()
+}
+
+fn part2(input: &str) -> usize {
+    let dir_sizes = calculate_directory_sizes(input);
+    let root_size = dir_sizes.get("/").unwrap();
+    let available_space = 70000000 - root_size;
+    let size_of_smallest_suitable_dir = dir_sizes
+        .values()
+        .filter(|size| (available_space + **size) >= 30000000)
+        .min()
+        .unwrap();
+    *size_of_smallest_suitable_dir
+}
+
+fn calculate_directory_sizes(input: &str) -> HashMap<String, usize> {
     let mut dir_sizes = HashMap::<String, usize>::new();
     let mut current_dir = Vec::<String>::new();
     let mut lines = input.lines();
@@ -42,9 +59,5 @@ fn part1(input: &str) -> usize {
         // println!("current dirs: {:?}", current_dir);
     }
     // println!("sizes: {:?}", dir_sizes);
-    dir_sizes.values().filter(|size| **size <= 100000).sum()
-}
-
-fn part2(input: &str) -> usize {
-    0
+    dir_sizes
 }
