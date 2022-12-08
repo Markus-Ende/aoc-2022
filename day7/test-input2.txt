@@ -1,0 +1,12 @@
+$ cd /
+$ ls
+dir a
+dir b
+1 b.txt
+1 c.dat
+$ cd a
+10 x
+$ cd ..
+$ cd b
+100000 x
+100001 x
