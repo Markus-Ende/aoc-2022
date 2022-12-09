@@ -1,4 +1,4 @@
-use std::{collections::HashSet, env, fs, iter};
+use std::{collections::HashSet, env, fs};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -51,7 +51,7 @@ fn part2(input: &str) -> usize {
 
 fn simulate_rope(input: &str, size: usize) -> usize {
     let mut visited = HashSet::<(i32, i32)>::new();
-    let mut segments = iter::repeat((0, 0)).take(size).collect::<Vec<(_, _)>>();
+    let mut segments = vec![(0, 0); size];
     visited.insert((0, 0));
 
     for line in input.lines() {
