@@ -2,7 +2,11 @@ use std::{env, fs};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let file_path = &args[1];
+    let file_path = if args.len() > 1 {
+        &args[1]
+    } else {
+        "input.txt"
+    };
 
     let input = fs::read_to_string(file_path).expect("Should have been able to read the file");
 
@@ -12,71 +16,56 @@ fn main() {
 }
 
 fn part1(input: &str) -> i32 {
-    let mut x = 1;
-    let mut cycles = 0;
     let mut signal_strength = 0;
-
-    input.lines().for_each(|line| {
-        let instruction: Vec<_> = line.split_ascii_whitespace().collect();
-        match &instruction[..] {
-            ["noop"] => {
-                cycles += 1;
-                if [20, 60, 100, 140, 180, 220].contains(&cycles) {
-                    // println!("cycle {}, x {}", cycles, x);
-                    signal_strength += cycles * x;
-                }
-            }
-            ["addx", arg] => {
-                cycles += 2;
-                if [20, 21, 60, 61, 100, 101, 140, 141, 180, 181, 220, 221].contains(&cycles) {
-                    let real_cycle = if cycles % 2 == 0 { cycles } else { cycles - 1 };
-                    // println!("cycle {}, x {}", real_cycle, x);
-                    signal_strength += real_cycle * x;
-                }
-                x += arg.parse::<i32>().unwrap();
-            }
-            _ => panic!("unknown instruction"),
+    let mut calculate_signal_strength = |cycle, x| {
+        if [20, 60, 100, 140, 180, 220].contains(&cycle) {
+            // println!("cycle {}, x {}", cycle, x);
+            signal_strength += cycle * x;
         }
-    });
+    };
+
+    run_program(input, &mut calculate_signal_strength);
     signal_strength
 }
 
 fn part2(input: &str) -> () {
+    fn draw(cycle: i32, x: i32) -> () {
+        if [x - 1, x, x + 1].contains(&((cycle - 1) % 40)) {
+            print!("#");
+        } else {
+            print!(".");
+        }
+        check_newline(cycle);
+    }
+
+    fn check_newline(cycle: i32) -> () {
+        if [40, 80, 120, 160, 200, 240].contains(&cycle) {
+            println!();
+        }
+    }
+
+    run_program(input, &mut draw);
+}
+
+fn run_program(input: &str, tick: &mut dyn FnMut(i32, i32) -> ()) -> () {
     let mut x = 1;
-    let mut cycles = 0;
+    let mut cycle = 1;
 
     input.lines().for_each(|line| {
         let instruction: Vec<_> = line.split_ascii_whitespace().collect();
         match &instruction[..] {
             ["noop"] => {
-                draw(x, cycles);
-                cycles += 1;
-                check_newline(cycles);
+                tick(cycle, x);
+                cycle += 1;
             }
             ["addx", arg] => {
-                draw(x, cycles);
-                cycles += 1;
-                check_newline(cycles);
-                draw(x, cycles);
-                cycles += 1;
-                check_newline(cycles);
+                tick(cycle, x);
+                cycle += 1;
+                tick(cycle, x);
+                cycle += 1;
                 x += arg.parse::<i32>().unwrap();
             }
             _ => panic!("unknown instruction"),
         }
     });
-}
-
-fn draw(x: i32, cycle: i32) -> () {
-    if [x - 1, x, x + 1].contains(&(cycle % 40)) {
-        print!("#");
-    } else {
-        print!(".");
-    }
-}
-
-fn check_newline(cycle: i32) -> () {
-    if [40, 80, 120, 160, 200, 240].contains(&cycle) {
-        println!();
-    }
 }
