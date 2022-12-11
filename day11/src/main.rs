@@ -43,21 +43,18 @@ fn monkey_business(input: &str, rounds: i32, divide_by_3_after_operation: bool) 
             for item in items {
                 let monkey = &monkeys[monkey_index];
                 let worry = (monkey.operation)(*item, &monkeys);
-
                 let target_monkey_index = (monkey.test)(worry);
-
                 let target_monkey = &mut monkeys[target_monkey_index];
                 target_monkey.items.push(worry);
             }
         }
     }
     monkeys.sort_by(|a, b| b.inspect_count.cmp(&a.inspect_count));
-    let inspects: Vec<usize> = monkeys
+    monkeys
         .iter()
         .take(2)
         .map(|monkey| monkey.inspect_count)
-        .collect();
-    inspects[0] * inspects[1]
+        .product()
 }
 
 fn parse_monkeys(input: &str, divide_by_3_after_operation: bool) -> Vec<Monkey> {
@@ -116,13 +113,7 @@ fn parse_monkeys(input: &str, divide_by_3_after_operation: bool) -> Vec<Monkey> 
                         new_value = new_value / 3
                     }
 
-                    let mut residues: Vec<i64> = vec![];
-                    let mut modulii: Vec<i64> = vec![];
-                    for i in 0..all_monkeys.len() {
-                        residues.push(new_value % all_monkeys[i].module);
-                        modulii.push(all_monkeys[i].module);
-                    }
-                    chinese_remainder(&residues, &modulii).unwrap()
+                    new_value % all_monkeys.iter().map(|m| m.module).product::<i64>()
                 }),
                 test: Box::new(move |worry_level| {
                     if worry_level % module == 0 {
@@ -136,39 +127,4 @@ fn parse_monkeys(input: &str, divide_by_3_after_operation: bool) -> Vec<Monkey> 
             }
         })
         .collect()
-}
-
-// chinese remainder theorem implementation from
-// https://rosettacode.org/wiki/Chinese_remainder_theorem#Rust
-// because I was too lazy to write it by myself...
-
-fn egcd(a: i64, b: i64) -> (i64, i64, i64) {
-    if a == 0 {
-        (b, 0, 1)
-    } else {
-        let (g, x, y) = egcd(b % a, a);
-        (g, y - (b / a) * x, x)
-    }
-}
-
-fn mod_inv(x: i64, n: i64) -> Option<i64> {
-    let (g, x, _) = egcd(x, n);
-    if g == 1 {
-        Some((x % n + n) % n)
-    } else {
-        None
-    }
-}
-
-fn chinese_remainder(residues: &[i64], modulii: &[i64]) -> Option<i64> {
-    let prod = modulii.iter().product::<i64>();
-
-    let mut sum = 0;
-
-    for (&residue, &modulus) in residues.iter().zip(modulii) {
-        let p = prod / modulus;
-        sum += residue * mod_inv(p, modulus)? * p
-    }
-
-    Some(sum % prod)
 }
