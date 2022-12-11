@@ -1,10 +1,11 @@
-use std::{env, fmt, fs, io};
+use std::{env, fmt, fs};
 
 struct Monkey {
-    items: Vec<i32>,
-    operation: Box<dyn Fn(i32) -> i32>,
-    test: Box<dyn Fn(i32) -> usize>,
+    items: Vec<i64>,
+    operation: Box<dyn Fn(i64, &Vec<Monkey>) -> i64>,
+    test: Box<dyn Fn(i64) -> usize>,
     inspect_count: usize,
+    module: i64,
 }
 
 impl fmt::Debug for Monkey {
@@ -12,6 +13,7 @@ impl fmt::Debug for Monkey {
         f.debug_struct("Monkey")
             .field("items", &self.items)
             .field("inspect_count", &self.inspect_count)
+            .field("module", &self.module)
             .finish()
     }
 }
@@ -21,41 +23,35 @@ fn main() {
     let file_path = if args.len() > 1 {
         &args[1]
     } else {
-        "test-input.txt"
+        "input.txt"
     };
 
     let input = fs::read_to_string(file_path).expect("Should have been able to read the file");
 
-    println!("part1 {}", part1(&input));
+    println!("part1 {}", monkey_business(&input, 20, true));
+    println!("part2 {}", monkey_business(&input, 10000, false));
 }
 
-fn part1(input: &str) -> usize {
-    let mut monkeys = parse_monkeys(input);
+fn monkey_business(input: &str, rounds: i32, divide_by_3_after_operation: bool) -> usize {
+    let mut monkeys = parse_monkeys(input, divide_by_3_after_operation);
 
-    for round in 0..20 {
-        println!("Round {}", round);
+    for _round in 0..rounds {
         for monkey_index in 0..monkeys.len() {
             let items = &monkeys[monkey_index].items.to_owned();
-            println!("Monkey {} inspecting items {:?}", monkey_index, items);
             (&mut monkeys[monkey_index]).inspect_count += items.len();
             let _ = &monkeys[monkey_index].items.clear();
             for item in items {
                 let monkey = &monkeys[monkey_index];
-                let worry = (monkey.operation)(*item) / 3;
-                println!("  item {} -> {}", item, worry);
+                let worry = (monkey.operation)(*item, &monkeys);
+
                 let target_monkey_index = (monkey.test)(worry);
+
                 let target_monkey = &mut monkeys[target_monkey_index];
-                println!(
-                    "  target monkey {}: {:?}",
-                    target_monkey_index, target_monkey
-                );
                 target_monkey.items.push(worry);
-                println!("  target monkey {:?}", target_monkey_index);
             }
         }
     }
     monkeys.sort_by(|a, b| b.inspect_count.cmp(&a.inspect_count));
-    println!("{:?}", monkeys);
     let inspects: Vec<usize> = monkeys
         .iter()
         .take(2)
@@ -64,18 +60,17 @@ fn part1(input: &str) -> usize {
     inspects[0] * inspects[1]
 }
 
-fn parse_monkeys(input: &str) -> Vec<Monkey> {
+fn parse_monkeys(input: &str, divide_by_3_after_operation: bool) -> Vec<Monkey> {
     input
         .split("\n\n")
         .map(|x| {
-            let mut starting_items: Option<Vec<i32>> = None;
+            let mut starting_items: Option<Vec<i64>> = None;
             let mut operation_op: Option<String> = None;
             let mut operation_operand: Option<String> = None;
-            let mut divisible_by = -1;
+            let mut module = 0;
             let mut true_monkey = 0;
             let mut false_monkey = 0;
 
-            // println!("{}", x);
             x.lines().for_each(|line| {
                 let spec: Vec<_> = line.trim().split_ascii_whitespace().collect();
                 match &spec[..] {
@@ -93,7 +88,7 @@ fn parse_monkeys(input: &str) -> Vec<Monkey> {
                         operation_operand = Some(String::from(*operand));
                     }
                     ["Test:", .., divisor] => {
-                        divisible_by = divisor.parse().unwrap();
+                        module = divisor.parse().unwrap();
                     }
                     ["If", "true:", .., target_monkey] => {
                         true_monkey = target_monkey.parse().unwrap();
@@ -106,39 +101,74 @@ fn parse_monkeys(input: &str) -> Vec<Monkey> {
                 }
             });
 
-            /*
-            let mut starting_items: Option<Vec<i32>> = None;
-            let mut operation_op: Option<String> = None;
-            let mut operation_operand: Option<String> = None;
-            let mut divisible_by = -1;
-            let mut true_monkey = 0;
-            let mut false_monkey = 0; */
-            println!(
-                "Parsed: {}, {}, {}",
-                divisible_by, true_monkey, false_monkey
-            );
-
             Monkey {
                 items: starting_items.unwrap(),
-                operation: Box::new(move |old| {
+                operation: Box::new(move |old, all_monkeys| {
                     let op = &operation_op.clone().unwrap()[..];
                     let operand = &operation_operand.clone().unwrap()[..];
-                    match (op, operand) {
+                    let mut new_value = match (op, operand) {
                         ("*", "old") => old * old,
-                        ("*", operand) => old * operand.parse::<i32>().unwrap(),
-                        ("+", operand) => old + operand.parse::<i32>().unwrap(),
+                        ("*", operand) => old * operand.parse::<i64>().unwrap(),
+                        ("+", operand) => old + operand.parse::<i64>().unwrap(),
                         _ => panic!(),
+                    };
+                    if divide_by_3_after_operation {
+                        new_value = new_value / 3
                     }
+
+                    let mut residues: Vec<i64> = vec![];
+                    let mut modulii: Vec<i64> = vec![];
+                    for i in 0..all_monkeys.len() {
+                        residues.push(new_value % all_monkeys[i].module);
+                        modulii.push(all_monkeys[i].module);
+                    }
+                    chinese_remainder(&residues, &modulii).unwrap()
                 }),
                 test: Box::new(move |worry_level| {
-                    if worry_level % divisible_by == 0 {
+                    if worry_level % module == 0 {
                         true_monkey
                     } else {
                         false_monkey
                     }
                 }),
                 inspect_count: 0,
+                module,
             }
         })
         .collect()
+}
+
+// chinese remainder theorem implementation from
+// https://rosettacode.org/wiki/Chinese_remainder_theorem#Rust
+// because I was too lazy to write it by myself...
+
+fn egcd(a: i64, b: i64) -> (i64, i64, i64) {
+    if a == 0 {
+        (b, 0, 1)
+    } else {
+        let (g, x, y) = egcd(b % a, a);
+        (g, y - (b / a) * x, x)
+    }
+}
+
+fn mod_inv(x: i64, n: i64) -> Option<i64> {
+    let (g, x, _) = egcd(x, n);
+    if g == 1 {
+        Some((x % n + n) % n)
+    } else {
+        None
+    }
+}
+
+fn chinese_remainder(residues: &[i64], modulii: &[i64]) -> Option<i64> {
+    let prod = modulii.iter().product::<i64>();
+
+    let mut sum = 0;
+
+    for (&residue, &modulus) in residues.iter().zip(modulii) {
+        let p = prod / modulus;
+        sum += residue * mod_inv(p, modulus)? * p
+    }
+
+    Some(sum % prod)
 }
